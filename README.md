@@ -72,18 +72,44 @@
 <!-- Write the rule in words, then give the numbers. What happens when the two
      signals disagree? -->
 
-**The rule:**
+**The rule:** I combine the two 0–1 scores with a weighted average. If they
+disagree, the result lands between them instead of letting either signal make
+the decision on its own. I give the model signal more weight, but the style
+signal can still pull the score away from a high-confidence accusation.
 
-**The numbers:**
+**The numbers:** 70% model signal and 30% style signal. The current label
+thresholds in `config.py` are 0.35 for human and 0.65 for AI; scores between
+them are unsure.
 
 **Where it lives:** `scoring.py::combine_signals`
 
 <!-- ⚠️ The grader checks your code against that line. If your rule lives
      somewhere else, say where. -->
 
-**A case where my two signals split, and what my rule does with it:**
+**Four-input calibration (model / style / combined):**
 
+| Input | Model signal | Style signal | Combined score |
+|---|---:|---:|---:|
+| Clearly AI | 0.7544 | 0.4001 | 0.6481 |
+| Clearly human | 0.4089 | 0.2701 | 0.3673 |
+| Formal human | 0.7643 | 0.3824 | 0.6497 |
+| Lightly edited AI | 0.7423 | 0.3945 | 0.6380 |
 
+The formal human result surprised me: its model score is even higher than the
+clearly-AI sample, and the style score is close to the clearly-AI score too.
+That suggests the model signal is treating formal, predictable prose as AI-like;
+stylometry doesn't distinguish these two well either. The lightly edited AI
+sample also stays close to the clearly-AI sample on both signals. With the
+current 0.65 threshold, all three AI-like scores above are just below a
+high-confidence AI label. These examples show why the scores need cautious
+labels and an appeal path—they don't establish who wrote a text.
+
+An earlier comparison showed the signals can also rank nearby texts in
+opposite directions: the borderline sample's model score (0.3134) was below
+the clearly-human sample's (0.4089), while its style score (0.3106) was above
+the clearly-human score (0.2701). The 70/30 weighted average keeps the result
+between the two signals and leans toward the model signal; disagreement is
+not proof of authorship.
 
 ---
 
@@ -129,12 +155,13 @@ $ curl -X POST http://127.0.0.1:5000/submit \
 
 ```json
 {
+  "combined_score": 0.4867086168027773,
   "confidence": 0.5,
-  "content_id": "c_5441b659d9ac",
+  "content_id": "c_7ca71df74662",
   "guess": "unsure",
   "label": "not built yet",
   "model_score": 0.5326,
-  "style_score": null
+  "style_score": 0.37962872267592457
 }
 ```
 
@@ -161,15 +188,15 @@ $ curl "http://127.0.0.1:5000/log?limit=3"
   "count": 1,
   "entries": [
     {
-      "combined_score": null,
-      "content_id": "c_5441b659d9ac",
+      "combined_score": 0.4867086168027773,
+      "content_id": "c_7ca71df74662",
       "creator_id": "demo_instructor",
       "guess": "unsure",
       "label": null,
       "model_score": 0.5326,
       "status": "decided",
-      "style_score": null,
-      "timestamp": "2026-10-29T01:50:44+00:00"
+      "style_score": 0.37962872267592457,
+      "timestamp": "2026-10-29T01:59:53+00:00"
     }
   ]
 }

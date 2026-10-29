@@ -1,1 +1,2 @@
 {"timestamp": "2026-10-29T01:50:44+00:00", "content_id": "c_5441b659d9ac", "creator_id": "demo_instructor", "guess": "unsure", "model_score": 0.5326, "style_score": null, "combined_score": null, "label": null, "status": "decided"}
+{"timestamp": "2026-10-29T01:59:53+00:00", "content_id": "c_7ca71df74662", "creator_id": "demo_instructor", "guess": "unsure", "model_score": 0.5326, "style_score": 0.37962872267592457, "combined_score": 0.4867086168027773, "label": null, "status": "decided"}
