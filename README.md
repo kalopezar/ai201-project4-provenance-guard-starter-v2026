@@ -122,16 +122,37 @@ not proof of authorship.
 
 | Label | Score range | The exact text a reader sees |
 |---|---|---|
-| high-confidence human |  |  |
-| unsure |  |  |
-| high-confidence AI |  |  |
+| high-confidence human | 0.00 ≤ score ≤ 0.35 | This text looks more like it was written by a person. This is only an estimate, not proof of who wrote it. |
+| unsure | 0.35 < score < 0.65 | We can't tell whether this text was written by a person or AI. If you wrote it, you can appeal this result. |
+| high-confidence AI | 0.65 ≤ score ≤ 1.00 | This text looks more like it was written by AI. This is only an estimate, not proof of who wrote it. If you wrote it, you can appeal this result. |
 
 **Why I worded the "unsure" one this way:**
-<!-- It's the hardest of the three. It has to admit uncertainty without
-     sounding like an accusation, because the person reading it may well have
-     written every word themselves. -->
+I don't want an unsure result to sound like an accusation. It says plainly
+that the service can't tell, and lets someone who wrote the text know they can
+appeal.
 
+**Label reachability check:** I submitted these three examples to `/submit`.
+Each label was returned, with the combined scores shown.
 
+- Human: "Time management matters more than people admit, especially now that
+  work moves as fast as it does. If you're organised you hit deadlines, and
+  you're less frazzled doing it. A few things actually help. Prioritise - work
+  out what genuinely matters and do that first. Cut the interruptions;
+  notifications wreck focus and the damage is worse than it feels at the
+  time. And take breaks, short ones, often." → `human`, **0.3443**
+- Unsure: "The importance of effective time management cannot be overstated
+  in today's fast-paced work environment. Professionals who develop strong
+  organizational habits are better positioned to meet deadlines and reduce
+  stress. There are several key strategies that can help individuals improve
+  their productivity. First, prioritization is essential. By identifying the
+  most important tasks and addressing them first, workers can ensure that
+  critical objectives are met. Second, minimizing distractions plays a
+  significant role. Setting aside dedicated blocks of time for concentrated
+  work is widely considered beneficial. Finally, regular breaks are important
+  for maintaining performance." → `unsure`, **0.6481**
+- AI: "The cat sat on the mat. The cat was happy. The cat saw a dog. The dog
+  was happy. The cat and the dog played. The dog and the cat had fun. The cat
+  went home. The dog went home." → `ai`, **0.8383**
 
 ---
 
@@ -150,18 +171,18 @@ not proof of authorship.
 ```bash
 $ curl -X POST http://127.0.0.1:5000/submit \
   -H "Content-Type: application/json" \
-  -d '{"text": "Time management matters in a busy work environment. Prioritise important tasks, avoid distractions, and take regular breaks.", "creator_id": "demo_instructor"}'
+  -d "{\"text\": \"Time management matters more than people admit, especially now that work moves as fast as it does. If you're organised you hit deadlines, and you're less frazzled doing it. A few things actually help. Prioritise - work out what genuinely matters and do that first. Cut the interruptions; notifications wreck focus and the damage is worse than it feels at the time. And take breaks, short ones, often.\", \"creator_id\": \"label_human_ascii\"}"
 ```
 
 ```json
 {
-  "combined_score": 0.4867086168027773,
+  "combined_score": 0.3443468368771283,
   "confidence": 0.5,
-  "content_id": "c_7ca71df74662",
-  "guess": "unsure",
-  "label": "not built yet",
-  "model_score": 0.5326,
-  "style_score": 0.37962872267592457
+  "content_id": "c_39e7666f7a82",
+  "guess": "human",
+  "label": "This text looks more like it was written by a person. This is only an estimate, not proof of who wrote it.",
+  "model_score": 0.3485,
+  "style_score": 0.3346561229237612
 }
 ```
 
@@ -170,33 +191,45 @@ $ curl -X POST http://127.0.0.1:5000/submit \
 ```bash
 $ curl -X POST http://127.0.0.1:5000/appeal \
   -H "Content-Type: application/json" \
-  -d '{"content_id": "...", "reasoning": "..."}'
+  -d '{"content_id": "c_39e7666f7a82", "reasoning": "I wrote this myself. Please review the decision and the writing samples I can provide."}'
 ```
 
 ```json
-
+{
+  "content_id": "c_39e7666f7a82",
+  "message": "Your appeal has been recorded for review.",
+  "status": "under_review"
+}
 ```
 
 **What the log shows afterwards**
 
 ```bash
-$ curl "http://127.0.0.1:5000/log?limit=3"
+$ curl "http://127.0.0.1:5000/log?limit=2"
 ```
 
 ```json
 {
-  "count": 1,
+  "count": 2,
   "entries": [
     {
-      "combined_score": 0.4867086168027773,
-      "content_id": "c_7ca71df74662",
-      "creator_id": "demo_instructor",
-      "guess": "unsure",
-      "label": null,
-      "model_score": 0.5326,
+      "combined_score": 0.3443468368771283,
+      "content_id": "c_39e7666f7a82",
+      "creator_id": "label_human_ascii",
+      "guess": "human",
+      "label": "This text looks more like it was written by a person. This is only an estimate, not proof of who wrote it.",
+      "model_score": 0.3485,
       "status": "decided",
-      "style_score": 0.37962872267592457,
-      "timestamp": "2026-10-29T01:59:53+00:00"
+      "style_score": 0.3346561229237612,
+      "timestamp": "2026-10-29T02:06:38+00:00"
+    },
+    {
+      "content_id": "c_39e7666f7a82",
+      "creator_id": "label_human_ascii",
+      "event": "appeal",
+      "reasoning": "I wrote this myself. Please review the decision and the writing samples I can provide.",
+      "status": "under_review",
+      "timestamp": "2026-10-29T02:08:57+00:00"
     }
   ]
 }

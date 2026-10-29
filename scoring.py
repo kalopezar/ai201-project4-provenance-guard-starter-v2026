@@ -44,7 +44,6 @@ def combine_signals(model_score: float, style_score: float) -> float:
 def score_to_label(score: float) -> tuple[str, str]:
     """
     Turn a score into a guess and the text a reader actually sees.
-    ← TODO (Milestone 5)
 
     Returns:
         (guess, label_text) — where `guess` is a short machine-readable string
@@ -67,12 +66,24 @@ def score_to_label(score: float) -> tuple[str, str]:
     think if they got it on their own work. That question is the whole
     milestone.
     """
-    # TODO: replace this — thresholds are in config.py
     if score >= config.AI_THRESHOLD:
-        return "ai", "PLACEHOLDER — write the high-confidence AI label."
+        return (
+            "ai",
+            "This text looks more like it was written by AI. This is only an "
+            "estimate, not proof of who wrote it. If you wrote it, you can "
+            "appeal this result.",
+        )
     if score <= config.HUMAN_THRESHOLD:
-        return "human", "PLACEHOLDER — write the high-confidence human label."
-    return "unsure", "PLACEHOLDER — write the unsure label."
+        return (
+            "human",
+            "This text looks more like it was written by a person. This is "
+            "only an estimate, not proof of who wrote it.",
+        )
+    return (
+        "unsure",
+        "We can't tell whether this text was written by a person or AI. If "
+        "you wrote it, you can appeal this result.",
+    )
 
 
 def label_ranges() -> list[tuple[str, str]]:
@@ -81,7 +92,10 @@ def label_ranges() -> list[tuple[str, str]]:
     label text — given to you so the numbers can't drift apart from config.py.
     """
     return [
-        ("high-confidence human", f"0.00 – {config.HUMAN_THRESHOLD:.2f}"),
-        ("unsure", f"{config.HUMAN_THRESHOLD:.2f} – {config.AI_THRESHOLD:.2f}"),
-        ("high-confidence AI", f"{config.AI_THRESHOLD:.2f} – 1.00"),
+        ("high-confidence human", f"0.00 ≤ score ≤ {config.HUMAN_THRESHOLD:.2f}"),
+        (
+            "unsure",
+            f"{config.HUMAN_THRESHOLD:.2f} < score < {config.AI_THRESHOLD:.2f}",
+        ),
+        ("high-confidence AI", f"{config.AI_THRESHOLD:.2f} ≤ score ≤ 1.00"),
     ]
