@@ -124,11 +124,18 @@
 ```bash
 $ curl -X POST http://127.0.0.1:5000/submit \
   -H "Content-Type: application/json" \
-  -d '{"text": "...", "creator_id": "..."}'
+  -d '{"text": "Time management matters in a busy work environment. Prioritise important tasks, avoid distractions, and take regular breaks.", "creator_id": "demo_instructor"}'
 ```
 
 ```json
-
+{
+  "confidence": 0.5,
+  "content_id": "c_5441b659d9ac",
+  "guess": "unsure",
+  "label": "not built yet",
+  "model_score": 0.5326,
+  "style_score": null
+}
 ```
 
 **An appeal**
@@ -150,7 +157,22 @@ $ curl "http://127.0.0.1:5000/log?limit=3"
 ```
 
 ```json
-
+{
+  "count": 1,
+  "entries": [
+    {
+      "combined_score": null,
+      "content_id": "c_5441b659d9ac",
+      "creator_id": "demo_instructor",
+      "guess": "unsure",
+      "label": null,
+      "model_score": 0.5326,
+      "status": "decided",
+      "style_score": null,
+      "timestamp": "2026-10-29T01:50:44+00:00"
+    }
+  ]
+}
 ```
 
 ---

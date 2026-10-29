@@ -217,16 +217,18 @@ def submit():
 
     # Step 4 - log the decision. The content_id is what /appeal needs later.
     content_id = f"c_{uuid.uuid4().hex[:12]}"
+    guess = "unsure"
     audit.log_decision(
         content_id=content_id,
         creator_id=creator_id,
+        guess=guess,
         model_score=model_score,
         status="decided",
     )
 
     return jsonify({
         "content_id": content_id,
-        "guess": "unsure",
+        "guess": guess,
         "confidence": 0.5,
         "label": "not built yet",
         "model_score": model_score,
