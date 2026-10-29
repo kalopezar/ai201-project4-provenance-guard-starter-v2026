@@ -44,61 +44,76 @@ Two things worth knowing before you pick numbers:
 ---
 ## 1.
 
-<!-- Your criterion. It must name a number. -->
-
-
+When I test 10 pieces I've written myself, no more than 1 should get the
+high-confidence AI label in any of the three runs.
 
 **Why this target:**
 
+After reading this, I'm keeping my limit at 1 in 10. A wrong AI label can
+upset a writer and make them feel they have to prove themselves, so the label
+shouldn't be treated as proof, and they should be able to appeal it. I still
+think missing some AI writing is less harmful than accusing real writers.
+Anything above 1 false positive in 10 would be too many.
 
+> "I wrote this myself, and now it's being called AI-generated. I don't know
+> how I'm supposed to prove that, but I don't want this label attached to my
+> work. Can someone please review it?"
 
 ---
 
 ## 2.
 
-<!-- Your criterion. -->
-
-
+For 10 clearly AI-written pieces and 10 clearly human-written pieces, the
+average combined score for the AI writing should be at least 0.20 higher in
+each of the three runs. I'll calculate it using the returned `model_score` and
+`style_score` with `scoring.combine_signals`.
 
 **Why this target:**
 
-
+I chose a 0.20 gap because the two groups should be noticeably different, but
+I'm not expecting every piece to be classified correctly. Borderline writing
+can still land in the unsure range.
 
 ---
 
 ## 3.
 
-<!-- Your criterion. -->
-
-
+In each run, at least one submission should get each label: high-confidence
+human, unsure, and high-confidence AI.
 
 **Why this target:**
 
-
+I want at least one example of each label in every run so I know all three
+outcomes are reachable, rather than only being present in the code.
 
 ---
 
 ## 4.
 
-<!-- Your criterion. -->
-
-
+When I appeal a real submission, the log should contain exactly 1 appeal entry
+for that `content_id`, with my reason, the original creator ID, and status
+`under_review`. The log should also still contain exactly 1 original decision
+entry for that ID, with status `decided`.
 
 **Why this target:**
 
-
+I expect exactly one entry for each event so an appeal can't disappear or be
+duplicated in the log. Keeping the original decision matters because a writer
+should be able to see what they are appealing.
 
 ---
 
 ## 5.
 
-<!-- Your criterion. -->
-
-
+If `text` is missing, null, empty, only spaces, or not a string, the service
+should return HTTP 400. If it's over 100,000 characters, it should return
+HTTP 413. In both cases, it shouldn't run either signal or log a decision.
 
 **Why this target:**
 
-
+I picked these responses so clients can tell a malformed request from one
+that's too large. A 100,000-character limit gives ordinary writing room while
+keeping oversized text from using model resources.
 
 ---
 
