@@ -39,7 +39,24 @@
 <!-- The path a submission takes, from arriving to the label a reader sees.
      Six or seven steps — this is the trace you wrote in Milestone 1. -->
 
-
+1. A writing site sends `POST /submit` a JSON object with `text` and
+   `creator_id`.
+2. The service checks that the JSON is an object and that `text` is a
+   non-empty string. Invalid requests get HTTP 400 before either signal runs.
+3. `detector.model_signal` measures how predictable the text is to a local
+   language model. It returns a 0–1 score; higher means more AI-like.
+4. `stylometry.style_signal` measures sentence-length variation, vocabulary
+   repetition, and punctuation density, then returns its own 0–1 score.
+5. `scoring.combine_signals` combines the two scores using a 70% model / 30%
+   style weighted average.
+6. `scoring.score_to_label` uses the combined score to choose human (0.00–0.35),
+   unsure (between 0.35 and 0.65), or AI (0.65–1.00). The service logs the
+   decision and returns a `content_id`, both signal scores, the combined
+   score, the guess, and the reader-facing label. `confidence` is currently a
+   placeholder value of 0.5.
+7. If the writer disagrees, they can send the `content_id` and their reasoning
+   to `POST /appeal`. The service appends an appeal to the audit log with
+   status `under_review`; `GET /log` shows the decision and appeal entries.
 
 ---
 
@@ -53,19 +70,31 @@
 
 ### Signal one — the model signal
 
-**What it measures:**
+**What it measures:** `detector.model_signal` estimates how predictable each
+word is to a local GPT-2 language model and turns that into a 0–1 score.
 
-**Why that might differ between human and AI writing:**
+**Why that might differ between human and AI writing:** AI-generated text can
+favor common, predictable word choices, so it may be easier for another
+language model to predict.
 
-**What it can't see:**
+**What it can't see:** It cannot tell who actually wrote the text. Plain,
+conventional human writing may also be predictable, while unusual human prose
+may be hard to predict.
 
 ### Signal two — the style signal
 
-**What it measures:**
+**What it measures:** `stylometry.style_signal` looks at sentence-length
+variation, the ratio of unique words to total words, and punctuation per
+word. It combines these surface measurements into a 0–1 score.
 
-**Why that might differ between human and AI writing:**
+**Why that might differ between human and AI writing:** Generated writing
+often uses a more even sentence rhythm and repeats familiar vocabulary.
+Human writing can vary more in sentence length and punctuation.
 
-**What it can't see:**
+**What it can't see:** It does not understand the text or know its author.
+Formal human prose can resemble AI writing, and someone can change these
+measurements by editing sentence breaks, vocabulary, or punctuation without
+changing the ideas.
 
 ### The combining rule
 
@@ -241,15 +270,25 @@ $ curl "http://127.0.0.1:5000/log?limit=2"
 
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* Help me get `/submit` from a placeholder response to a
+  working route using the model signal, and check malformed requests before
+  running the model.
+- *What came back:* The route needed to validate the payload first, then run
+  the signal, create an appeal-ready `content_id`, and log the decision.
+- *What I changed:* I used that flow, checked it with a mocked signal and with
+  `curl`, and kept the guess and label as placeholders until the scoring and
+  label steps were ready.
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* Compare the model and style signals on the same examples
+  and help choose a combining rule that handles disagreement.
+- *What came back:* The formal human sample scored almost like the clearly-AI
+  sample on both signals. A weighted average would keep the combined score
+  between the two inputs.
+- *What I changed:* I chose a 70/30 model-to-style weighted average, documented
+  the surprising calibration results and the false-positive risk, and made
+  sure the appeal path was recorded rather than presenting a score as proof.
 
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 
