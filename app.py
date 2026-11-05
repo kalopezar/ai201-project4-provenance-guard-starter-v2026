@@ -38,27 +38,16 @@ app = Flask(__name__)
 
 
 # ── Rate limiting — UNIT 8 ────────────────────────────────────────────────────
-# Off until you turn it on. In unit 8, Milestone 1:
-#
-#   1. Set RATE_LIMITING_ENABLED = True in config.py (or AI201_RATE_LIMITS=1)
-#   2. Choose your numbers there
-#   3. Uncomment the @limiter.limit(...) line on /submit below
-#
-# The order doesn't matter. While limiting is off, that decorator is a no-op
-# that quietly does nothing, so uncommenting it early costs you nothing — but
-# it also means no 429 until you've done step 1.
-#
-# The storage backend is preconfigured, which stops Flask-Limiter printing a
-# warning on every start. In-memory is right for one laptop and wrong for
-# anything real — a restart forgets every count.
+# The limiter is enabled in config.py and applies to /submit below. The
+# in-memory backend fits a single local service; a restart forgets its counts,
+# and multiple service instances would not share limits.
 
 class _LimiterOff:
     """
-    Stands in for the real limiter while rate limiting is off.
+    Stands in for the real limiter if rate limiting is disabled.
 
     It makes @limiter.limit(...) a decorator that returns the route
-    untouched, so uncommenting the line before you flip the setting is
-    harmless instead of a crash on startup.
+    untouched, so the route remains usable when limiting is disabled.
     """
 
     def limit(self, *args, **kwargs):
@@ -74,10 +63,8 @@ if config.RATE_LIMITING_ENABLED:
         """
         Who a request counts against.
 
-        Falling back to the caller's address is the easy version. Unit 8's
-        stretch asks about per-creator limits instead — and the difference
-        matters: one script can look like a thousand callers, and one household
-        can look like one.
+        A non-empty creator ID gets its own limit; requests without one use
+        the caller's address. IDs are caller-provided, so they can be changed.
         """
         payload = request.get_json(silent=True)
         # A body that parses as JSON but isn't an object — a bare list or
@@ -154,7 +141,7 @@ def health():
 # ── YOU BUILD THIS ────────────────────────────────────────────────────────────
 
 @app.post("/submit")
-# @limiter.limit(f"{config.RATE_LIMIT_PER_MINUTE}/minute;{config.RATE_LIMIT_PER_DAY}/day")
+@limiter.limit(f"{config.RATE_LIMIT_PER_MINUTE}/minute;{config.RATE_LIMIT_PER_DAY}/day")
 def submit():
     """
     Take a piece of text, decide about it, log the decision, answer.

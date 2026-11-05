@@ -301,24 +301,26 @@ $ curl "http://127.0.0.1:5000/log?limit=2"
 
 ## Rate Limiting
 
-**My limits:** ___ per minute, ___ per day
+**My limits:** 10 per minute, 100 per day
 
 **Why those numbers and not others:**
-<!-- Think about two people: a real writer submitting their own work a few
-     times an hour, and a script sending a thousand variations to map your
-     thresholds. Your numbers have to be liveable for the first and hostile to
-     the second. -->
+Ten submissions per minute leaves room for a writer to make several revisions
+without waiting, while stopping a burst of threshold-probing requests quickly.
+The 100-per-day cap allows repeated legitimate work across a day but limits
+long-running automated probing. A lower cap could interrupt ordinary revision;
+a higher cap would let a script test more variations before being stopped.
 
-**What a caller counts as:** <!-- per address, or per creator_id? They fail
-differently — one script can look like a thousand callers, and one household
-can look like one. -->
+**What a caller counts as:** A non-empty `creator_id` is the rate-limit key;
+requests without one fall back to the caller's address. This allows different
+creators behind one address to submit independently, but a caller can evade
+the creator limit by changing or inventing IDs.
 
 **The run of status codes when I pushed past it:**
 
 <!-- python run_attacks.py --flood 15 -->
 
 ```
-
+200 200 200 200 200 200 200 200 200 200 429 429 429 429 429
 ```
 
 ---
