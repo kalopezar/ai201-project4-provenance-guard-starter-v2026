@@ -70,7 +70,7 @@ WEIGHT_STYLE_SIGNAL = 0.3
 # that decide who pays for it.
 
 HUMAN_THRESHOLD = 0.35
-AI_THRESHOLD = 0.65
+AI_THRESHOLD = 0.80
 
 # ─── Rate limiting (UNIT 8) ──────────────────────────────────────────────────
 # The minute cap limits bursts; the daily cap allows ordinary revisions while

@@ -55,7 +55,7 @@ Continue in this repository to preserve the project history:
 5. `scoring.combine_signals` combines the two scores using a 70% model / 30%
    style weighted average.
 6. `scoring.score_to_label` uses the combined score to choose human (0.00–0.35),
-   unsure (between 0.35 and 0.65), or AI (0.65–1.00). The service logs the
+   unsure (between 0.35 and 0.80), or AI (0.80–1.00). The service logs the
    decision and returns a `content_id`, both signal scores, the combined
    score, the guess, and the reader-facing label. `confidence` is currently a
    placeholder value of 0.5.
@@ -112,7 +112,7 @@ the decision on its own. I give the model signal more weight, but the style
 signal can still pull the score away from a high-confidence accusation.
 
 **The numbers:** 70% model signal and 30% style signal. The current label
-thresholds in `config.py` are 0.35 for human and 0.65 for AI; scores between
+thresholds in `config.py` are 0.35 for human and 0.80 for AI; scores between
 them are unsure.
 
 **Where it lives:** `scoring.py::combine_signals`
@@ -133,10 +133,11 @@ The formal human result surprised me: its model score is even higher than the
 clearly-AI sample, and the style score is close to the clearly-AI score too.
 That suggests the model signal is treating formal, predictable prose as AI-like;
 stylometry doesn't distinguish these two well either. The lightly edited AI
-sample also stays close to the clearly-AI sample on both signals. With the
-current 0.65 threshold, all three AI-like scores above are just below a
-high-confidence AI label. These examples show why the scores need cautious
-labels and an appeal path—they don't establish who wrote a text.
+sample also stays close to the clearly-AI sample on both signals. At the
+original 0.65 threshold, all three AI-like scores above were just below a
+high-confidence AI label; after the Milestone 5 change, only the 0.8383
+example is above the 0.80 boundary. These examples show why the scores need
+cautious labels and an appeal path—they don't establish who wrote a text.
 
 An earlier comparison showed the signals can also rank nearby texts in
 opposite directions: the borderline sample's model score (0.3134) was below
@@ -157,8 +158,8 @@ not proof of authorship.
 | Label | Score range | The exact text a reader sees |
 |---|---|---|
 | high-confidence human | 0.00 ≤ score ≤ 0.35 | This text looks more like it was written by a person. This is only an estimate, not proof of who wrote it. |
-| unsure | 0.35 < score < 0.65 | We can't tell whether this text was written by a person or AI. If you wrote it, you can appeal this result. |
-| high-confidence AI | 0.65 ≤ score ≤ 1.00 | This text looks more like it was written by AI. This is only an estimate, not proof of who wrote it. If you wrote it, you can appeal this result. |
+| unsure | 0.35 < score < 0.80 | We can't tell whether this text was written by a person or AI. If you wrote it, you can appeal this result. |
+| high-confidence AI | 0.80 ≤ score ≤ 1.00 | This text looks more like it was written by AI. This is only an estimate, not proof of who wrote it. If you wrote it, you can appeal this result. |
 
 **Why I worded the "unsure" one this way:**
 I don't want an unsure result to sound like an accusation. It says plainly
@@ -637,7 +638,7 @@ a diagnosis.
 | EV07 | Signal two, combining rule, label mapping | Punctuation padding affects punctuation density, a direct input to the style score. Style scored 0.2544; combined with model score 0.5862, it yielded 0.4867 (unsure). |
 | EV08 | Signal one, then label mapping | The short passage's perplexity mapped to a low 0.2452 model score; the combined score was 0.2829, producing a human label. The signal has no short-text calibration beyond rejecting texts too short to tokenize. |
 | EV09 | Both signals, combining rule, label mapping | The human opening paragraph changed the features of the full mixed text. Scores of 0.7042 (model) and 0.3703 (style) averaged to 0.6040, so the AI text received an unsure label. |
-| FP02–FP07 | Signal one, then combining rule and label mapping | These human samples scored 0.7387–0.8816 on model predictability. Formal, careful, rubric-shaped, technical, template-like, or deliberately repetitive prose can be predictable to GPT-2; the model signal treats predictability as AI-likeness. The combined scores (0.6805–0.7925) crossed the 0.65 AI threshold, including when style was less AI-like. |
+| FP02–FP07 | Signal one, then combining rule and label mapping | These human samples scored 0.7387–0.8816 on model predictability. Formal, careful, rubric-shaped, technical, template-like, or deliberately repetitive prose can be predictable to GPT-2; the model signal treats predictability as AI-likeness. The combined scores (0.6805–0.7925) crossed the original 0.65 AI threshold, including when style was less AI-like. |
 | PI01, PI02, PI03, PI06 | Route passes text to both signals; combining rule and label mapping | The route treats embedded instructions as ordinary text; it does not execute them or use a prompt-following model. The signals only measure perplexity and surface statistics. Those features happened to yield human/unsure scores (model 0.2044–0.5943), so the attempted text-based evasion avoided an AI label; this was a classification evasion, not instruction execution. |
 | MF02 | Route and signal one | The route checks only that text is a non-empty string. The one-character input reached `detector.perplexity`, which raises `ValueError` below three tokens; the route does not reject this length or convert the exception into a client error, so Flask returned 500. |
 | MF03–MF04 | Route validation, then both signals | Control-only and punctuation-only strings pass the route's non-empty-string check. Neither signal validates that input contains meaningful words; the scoring pipeline therefore made a decision and returned a human label for junk. |
@@ -652,7 +653,7 @@ a diagnosis.
 **Patterns across the misses:** Criteria 2 and 3 are one calibration problem:
 the model and style score distributions overlap, so their 70/30 combination
 separates the groups by only 0.1194, and none of these test texts reaches the
-0.65 AI-label boundary. The label mapping has an AI range, but the tested
+original 0.65 AI-label boundary. The label mapping has an AI range, but the tested
 inputs did not reach it. This same weak separation explains why nine of ten
 evasion attempts avoided an AI label; changes to word choice, sentence shape,
 quotations, punctuation, or a human-written opening paragraph move the two
@@ -682,22 +683,225 @@ to all writing.
 
 ## The Improvement
 
-**What I changed:**
+**What I changed:** I raised `config.AI_THRESHOLD` from 0.65 to 0.80. The
+human threshold (0.35), both signals, their 70/30 weights, route behavior, and
+all other settings stayed the same.
 
-**Which diagnosis pointed at it:**
+**Which diagnosis pointed at it:** FP02–FP07 were genuine human samples with
+combined scores from 0.6805 to 0.7925, all above the old 0.65 AI boundary.
+The model signal's predictability assumption pushed them into the accusation
+range, so I widened the unsure band upward rather than changing either signal.
 
 ### Attack Run — After
 
-<!-- Same format. `run_attacks.py --label after` -->
+See the [full timestamped `--label after` report](./results/attack_run_2026-11-04_2200_after.md).
+The table below compares the baseline report
+`results/attack_run_2026-11-04_2120.md` with the full after run; HELD/BROKE
+uses the same attack-specific rules as the baseline.
 
+| Measure | Before | After |
+|---|---:|---:|
+| Total attacks | 56 | 56 |
+| HELD | 18 | 24 |
+| BROKE | 38 | 32 |
+| False-positive attacks labeled AI (FP02–FP07) | 6/6 | 0/6 |
+| Evasion attacks labeled AI (EV01–EV10) | 1/10 | 1/10 |
+| HTTP 5xx responses | 1 | 1 |
 
+**Every attack, side by side:** each cell shows HTTP status / returned label /
+held-or-broke verdict. `n/a` means the request was rejected or crashed before
+a label was returned. The before values are from
+`results/attack_run_2026-11-04_2120.md`; after values are from
+`results/attack_run_2026-11-04_2200_after.md`.
 
-**Did it help, and how do I know:**
+| ID | Before (HTTP / label / verdict) | After (HTTP / label / verdict) |
+|---|---|---|
+| EV01 | 200 / human / BROKE | 200 / human / BROKE |
+| EV02 | 200 / unsure / BROKE | 200 / unsure / BROKE |
+| EV03 | 200 / unsure / BROKE | 200 / unsure / BROKE |
+| EV04 | 200 / unsure / BROKE | 200 / unsure / BROKE |
+| EV05 | 200 / human / BROKE | 200 / human / BROKE |
+| EV06 | 200 / unsure / BROKE | 200 / unsure / BROKE |
+| EV07 | 200 / unsure / BROKE | 200 / unsure / BROKE |
+| EV08 | 200 / human / BROKE | 200 / human / BROKE |
+| EV09 | 200 / unsure / BROKE | 200 / unsure / BROKE |
+| EV10 | 200 / ai / HELD | 200 / ai / HELD |
+| FP01 | 200 / unsure / HELD | 200 / unsure / HELD |
+| FP02 | 200 / ai / BROKE | 200 / unsure / HELD |
+| FP03 | 200 / ai / BROKE | 200 / unsure / HELD |
+| FP04 | 200 / ai / BROKE | 200 / unsure / HELD |
+| FP05 | 200 / ai / BROKE | 200 / unsure / HELD |
+| FP06 | 200 / ai / BROKE | 200 / unsure / HELD |
+| FP07 | 200 / ai / BROKE | 200 / unsure / HELD |
+| FP08 | 200 / human / HELD | 200 / human / HELD |
+| PI01 | 200 / unsure / BROKE | 200 / unsure / BROKE |
+| PI02 | 200 / human / BROKE | 200 / human / BROKE |
+| PI03 | 200 / unsure / BROKE | 200 / unsure / BROKE |
+| PI04 | 200 / unsure / HELD | 200 / unsure / HELD |
+| PI05 | 200 / unsure / HELD | 200 / unsure / HELD |
+| PI06 | 200 / unsure / BROKE | 200 / unsure / BROKE |
+| MF01 | 400 / n/a / HELD | 400 / n/a / HELD |
+| MF02 | 500 / n/a / BROKE | 500 / n/a / BROKE |
+| MF03 | 200 / human / BROKE | 200 / human / BROKE |
+| MF04 | 200 / human / BROKE | 200 / human / BROKE |
+| MF05 | 200 / ai / BROKE | 200 / ai / BROKE |
+| MF06 | 200 / ai / BROKE | 200 / ai / BROKE |
+| MF07 | 200 / ai / BROKE | 200 / unsure / BROKE |
+| MF08 | 200 / ai / BROKE | 200 / ai / BROKE |
+| RQ01 | 400 / n/a / HELD | 400 / n/a / HELD |
+| RQ02 | 200 / human / BROKE | 200 / human / BROKE |
+| RQ03 | 400 / n/a / HELD | 400 / n/a / HELD |
+| RQ04 | 400 / n/a / HELD | 400 / n/a / HELD |
+| RQ05 | 400 / n/a / HELD | 400 / n/a / HELD |
+| RQ06 | 200 / human / BROKE | 200 / human / BROKE |
+| RQ07 | 400 / n/a / HELD | 400 / n/a / HELD |
+| RQ08 | 400 / n/a / HELD | 400 / n/a / HELD |
+| RQ09 | 400 / n/a / HELD | 400 / n/a / HELD |
+| RQ10 | 400 / n/a / HELD | 400 / n/a / HELD |
+| RQ11 | 400 / n/a / HELD | 400 / n/a / HELD |
+| RQ12 | 400 / n/a / HELD | 400 / n/a / HELD |
+| FL01_01 | 200 / human / BROKE | 200 / human / BROKE |
+| FL01_02 | 200 / human / BROKE | 200 / human / BROKE |
+| FL01_03 | 200 / human / BROKE | 200 / human / BROKE |
+| FL01_04 | 200 / human / BROKE | 200 / human / BROKE |
+| FL01_05 | 200 / human / BROKE | 200 / human / BROKE |
+| FL01_06 | 200 / human / BROKE | 200 / human / BROKE |
+| FL01_07 | 200 / human / BROKE | 200 / human / BROKE |
+| FL01_08 | 200 / human / BROKE | 200 / human / BROKE |
+| FL01_09 | 200 / human / BROKE | 200 / human / BROKE |
+| FL01_10 | 200 / human / BROKE | 200 / human / BROKE |
+| FL01_11 | 429 / n/a / HELD | 429 / n/a / HELD |
+| FL01_12 | 429 / n/a / HELD | 429 / n/a / HELD |
+
+**Did it help? For the specific goal of avoiding false accusations, yes:**
+all six human samples FP02–FP07 changed from `ai` to `unsure`, and the
+own-writing criterion remained met (0/10 AI labels in all three trials). The
+overall result is not an unqualified improvement, though. It did not improve
+AI-evasion detection (only 1/10 evasion samples received `ai` before and
+after), repair the MF02 server error, improve the 0.1194 score gap, or make
+the AI label reachable in the five-criteria trials. The 38-to-32 drop in
+BROKE attacks comes from the six false-positive verdicts changing when their
+labels moved to unsure; it does not mean the detector became better at
+identifying AI. The wider unsure band fixes this accusation problem by
+allowing more AI text to avoid a high-confidence AI label.
 
 <!-- Widening the unsure band usually fixes one problem and creates another.
      Reporting that trade honestly is worth full credit. -->
 
+### Five criteria — after
 
+The same five original criteria were run three times after the threshold
+change. The complete JSON for every item in every trial is in the
+[after evaluation report](./results/run_2026-11-04_2200_after.md). All
+three trials were identical for each criterion.
+
+| Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
+|---|---|---|---|---|---|
+| 1. Own-writing false positives | No more than 1/10 labeled high-confidence AI | 0/10 | 0/10 | 0/10 | MET |
+| 2. AI/human score spread | AI mean at least 0.20 above human mean | 0.1194 | 0.1194 | 0.1194 | MISSED |
+| 3. Label coverage | At least one of each label | 2 human, 21 unsure, 0 AI | 2 human, 21 unsure, 0 AI | 2 human, 21 unsure, 0 AI | MISSED |
+| 4. Appeal path | Exactly one decision and one appeal per content ID | 1 + 1 | 1 + 1 | 1 + 1 | MET |
+| 5. Bad input | Invalid text -> 400; >100,000 chars -> 413; no signal/log | 400x5, 200 | 400x5, 200 | 400x5, 200 | MISSED |
+
+**Trial 1 real output**, from `run_eval.py::main` calling `app.py::submit`
+(criteria 1–3 and 5), or `app.py::submit` and `app.py::appeal` (criterion 4):
+
+**Criterion 1 — own writing:**
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5,
+    "model_score": 0.716,
+    "style_score": 0.3001747291651533,
+    "label": "We can't tell whether this text was written by a person or AI. If you wrote it, you can appeal this result.",
+    "sent": "I moved here when I was nineteen with two suitcases and a phone card. "
+  }
+]
+```
+
+**Criterion 2 — AI versus human score spread:**
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5,
+    "model_score": 0.7319,
+    "style_score": 0.40450499383306254,
+    "label": "We can't tell whether this text was written by a person or AI. If you wrote it, you can appeal this result.",
+    "sent": "Effective communication is essential in today's rapidly changing world"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5,
+    "model_score": 0.716,
+    "style_score": 0.3001747291651533,
+    "label": "We can't tell whether this text was written by a person or AI. If you wrote it, you can appeal this result.",
+    "sent": "I moved here when I was nineteen with two suitcases and a phone card. "
+  }
+]
+```
+
+**Criterion 3 — label coverage:**
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5,
+    "model_score": 0.7656,
+    "style_score": 0.3785645647260502,
+    "label": "We can't tell whether this text was written by a person or AI. If you wrote it, you can appeal this result.",
+    "sent": "Maintaining a healthy lifestyle involves several important habits. Reg"
+  }
+]
+```
+
+**Criterion 4 — appeal path:**
+
+```json
+[
+  {
+    "creator_id": "eval_appeal_1",
+    "reasoning": "I wrote this text myself and request a review of the decision.",
+    "sent": "I am submitting this paragraph to verify the appeal workflow. The serv",
+    "submission_status": 200,
+    "content_id": "c_2a70aa8cee74",
+    "appeal_status_code": 200,
+    "appeal_status": "under_review",
+    "decision_entries": 1,
+    "appeal_entries": 1,
+    "appeal_creator_id": "eval_appeal_1",
+    "appeal_reasoning": "I wrote this text myself and request a review of the decision.",
+    "passed": true
+  }
+]
+```
+
+**Criterion 5 — bad input handling:**
+
+```json
+[
+  {"status": 400, "guess": null, "confidence": null, "model_score": null, "style_score": null, "label": null, "sent": "{\"creator_id\": \"eval_bad_missing\"}"},
+  {"status": 400, "guess": null, "confidence": null, "model_score": null, "style_score": null, "label": null, "sent": "{\"text\": null, \"creator_id\": \"eval_bad_null\"}"},
+  {"status": 400, "guess": null, "confidence": null, "model_score": null, "style_score": null, "label": null, "sent": "(empty text)"},
+  {"status": 400, "guess": null, "confidence": null, "model_score": null, "style_score": null, "label": null, "sent": "   "},
+  {"status": 400, "guess": null, "confidence": null, "model_score": null, "style_score": null, "label": null, "sent": "{\"text\": 42, \"creator_id\": \"eval_bad_number\"}"},
+  {"status": 200, "guess": "ai", "confidence": 0.5, "model_score": 0.9976, "style_score": 0.5, "label": "This text looks more like it was written by AI. This is only an estimate, not proof of who wrote it. If you wrote it, you can appeal this result.", "sent": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}
+]
+```
+
+The threshold change did not alter the mean score gap, so criterion 2 remains
+missed. It also cannot create an AI-labeled case: the largest tested score
+remained below the new 0.80 boundary, leaving criterion 3 missed. Criterion 5
+continues to accept the 100,001-character input with HTTP 200 rather than 413.
+These are unchanged targets and misses, not reasons to revise the criteria.
 
 ---
 
@@ -706,12 +910,29 @@ to all writing.
 <!-- For each attack still getting through and each criterion still missed:
      what you'd do, and why you stopped. -->
 
+The after run still has 32 BROKE attacks. EV01–EV09 avoid the AI label because
+the two surface signals respond to edits, unusual words, sentence shape, and
+punctuation. PI01–PI03 and PI06 also avoid that label; their embedded
+instructions are not executed, but this scoring pipeline cannot infer
+authorship from instruction intent. MF02 still causes a 500, and MF03–MF08,
+RQ02, and RQ06 still accept invalid or malformed content as decisions. The
+first ten same-creator flood requests remain within the configured allowance;
+the last two are rate-limited.
 
+The original evaluation still missed criteria 2, 3, and 5. Criterion 2 needs
+better signal separation, not another threshold move; the before-run mean gap
+was 0.1194 against 0.20. Criterion 3 had no AI label even at the original 0.65
+cutoff, and raising the cutoff to 0.80 cannot help it. Criterion 5 still lacks
+the requested 413 response for oversized text. I stopped after the one
+threshold change so its effect is isolated; these are candidates for a later,
+separately measured improvement, not changes made alongside this one.
 
 **The trade I'd make if this ran for real:**
 
-<!-- Two sentences. Fewer wrong accusations means more AI text getting through.
-     Say which way you'd go and WHO PAYS FOR IT. -->
+I would keep the wider unsure band because a false accusation can harm a real
+writer more directly than an uncertain label. The trade is that more AI
+writing will avoid a high-confidence AI label, so the site and readers who
+depend on that signal pay through weaker detection.
 
 
 
