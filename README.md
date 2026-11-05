@@ -460,21 +460,125 @@ to a human writer despite the detector being only a probabilistic estimate.
 
 ## Run Log and Verdicts
 
-<!-- Your five criteria across three trials. `run_eval.py --label before`. -->
+<!-- All five criteria, three trials each, from run_eval.py. -->
+
+For criterion 2, the first ten passages are generated AI comparison text and
+the next ten are the user's own writing. Criterion 3 reuses those 20 inputs
+plus three borderline passages. The same inputs were sent in all three trials.
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |
+| 1. Own-writing false positives | No more than 1/10 labeled high-confidence AI | 0/10 | 0/10 | 0/10 | MET |
+| 2. AI/human score spread | AI mean at least 0.20 above human mean | 0.1194 | 0.1194 | 0.1194 | MISSED |
+| 3. Label coverage | At least one of each label | 2 human, 21 unsure, 0 AI | 2 human, 21 unsure, 0 AI | 2 human, 21 unsure, 0 AI | MISSED |
+| 4. Appeal path | Exactly one decision and one appeal per content ID | 1 + 1 | 1 + 1 | 1 + 1 | MET |
+| 5. Bad input | Invalid text -> 400; >100,000 chars -> 413; no signal/log | 400x5, 200 | 400x5, 200 | 400x5, 200 | MISSED |
 
-**Real output from one trial**, pasted as text, naming the file and function
-that produced it:
+Each trial ran through `python run_eval.py --label before`; the runner tests
+criterion 4 by submitting text, appealing the returned `content_id`, and
+checking the audit log. All three returned `under_review`, with one decision
+and one appeal containing the expected creator ID and reasoning. The content
+IDs were `c_0ad8d8351e27`, `c_cce1fce09a6c`, and `c_a8bae3a6388b`.
+
+**Real output from Trial 1** below is copied from
+`results/run_2026-11-04_2142_before.md`. The text scenarios were produced by
+`run_eval.py::main` calling `app.py::submit`; criterion 4 also calls
+`app.py::appeal` and reads `GET /log`. The first three blocks show actual
+representative records from their trial arrays; the complete arrays for all
+three trials are in the linked run report.
+
+**Criterion 1 — my own writing** (`run_eval.py::main` → `app.py::submit`):
 
 ```json
+[
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5,
+    "model_score": 0.716,
+    "style_score": 0.3001747291651533,
+    "label": "We can't tell whether this text was written by a person or AI. If you wrote it, you can appeal this result.",
+    "sent": "I moved here when I was nineteen with two suitcases and a phone card. "
+  }
+]
+```
 
+**Criterion 2 — AI versus human score spread** (one AI and one human record,
+`run_eval.py::main` → `app.py::submit`):
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5,
+    "model_score": 0.7319,
+    "style_score": 0.40450499383306254,
+    "label": "We can't tell whether this text was written by a person or AI. If you wrote it, you can appeal this result.",
+    "sent": "Effective communication is essential in today's rapidly changing world"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5,
+    "model_score": 0.716,
+    "style_score": 0.3001747291651533,
+    "label": "We can't tell whether this text was written by a person or AI. If you wrote it, you can appeal this result.",
+    "sent": "I moved here when I was nineteen with two suitcases and a phone card. "
+  }
+]
+```
+
+**Criterion 3 — label coverage** (highest-scoring record,
+`run_eval.py::main` → `app.py::submit`):
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5,
+    "model_score": 0.7656,
+    "style_score": 0.3785645647260502,
+    "label": "We can't tell whether this text was written by a person or AI. If you wrote it, you can appeal this result.",
+    "sent": "Maintaining a healthy lifestyle involves several important habits. Reg"
+  }
+]
+```
+
+**Criterion 4 — appeal path** (`run_eval.py::main` → `app.py::submit`,
+`app.py::appeal`, and `GET /log`):
+
+```json
+[
+  {
+    "creator_id": "eval_appeal_1",
+    "reasoning": "I wrote this text myself and request a review of the decision.",
+    "sent": "I am submitting this paragraph to verify the appeal workflow. The serv",
+    "submission_status": 200,
+    "content_id": "c_0ad8d8351e27",
+    "appeal_status_code": 200,
+    "appeal_status": "under_review",
+    "decision_entries": 1,
+    "appeal_entries": 1,
+    "appeal_creator_id": "eval_appeal_1",
+    "appeal_reasoning": "I wrote this text myself and request a review of the decision.",
+    "passed": true
+  }
+]
+```
+
+**Criterion 5 — bad input handling** (`run_eval.py::main` → `app.py::submit`):
+
+```json
+[
+  {"status": 400, "guess": null, "confidence": null, "model_score": null, "style_score": null, "label": null, "sent": "{\"creator_id\": \"eval_bad_missing\"}"},
+  {"status": 400, "guess": null, "confidence": null, "model_score": null, "style_score": null, "label": null, "sent": "{\"text\": null, \"creator_id\": \"eval_bad_null\"}"},
+  {"status": 400, "guess": null, "confidence": null, "model_score": null, "style_score": null, "label": null, "sent": "(empty text)"},
+  {"status": 400, "guess": null, "confidence": null, "model_score": null, "style_score": null, "label": null, "sent": "   "},
+  {"status": 400, "guess": null, "confidence": null, "model_score": null, "style_score": null, "label": null, "sent": "{\"text\": 42, \"creator_id\": \"eval_bad_number\"}"},
+  {"status": 200, "guess": "ai", "confidence": 0.5, "model_score": 0.9976, "style_score": 0.5, "label": "This text looks more like it was written by AI. This is only an estimate, not proof of who wrote it. If you wrote it, you can appeal this result.", "sent": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}
+]
 ```
 
 **Diagnoses**
@@ -493,7 +597,24 @@ that produced it:
 
      Look for a pattern. Five failures on one signal is one problem, not five. -->
 
+**Criterion 2 — score spread (missed):** Each run's mean combined score was
+0.5772 for the generated AI group and 0.4577 for the ten human-written samples,
+a gap of 0.1194 instead of the 0.20 target. Both signals separated the group
+means somewhat (model: 0.6343 vs. 0.5190; style: 0.4438 vs. 0.3148), but the
+weighted combination in `scoring.py::combine_signals` did not produce the
+required gap.
 
+**Criterion 3 — label coverage (missed):** Each run returned 2 human, 21 unsure,
+and 0 AI labels. The highest combined score was 0.64949, just below the
+0.65 high-confidence AI boundary in `scoring.py::score_to_label`, so no input
+reached that label.
+
+**Criterion 5 — bad input (missed):** The route returned 400 for the five
+missing, null, empty, whitespace-only, and non-string cases. The 100,001
+character input returned 200, was scored and logged as a decision in all three
+runs, rather than returning 413 before either signal. The route has no
+maximum-length guard, so this failure is at input validation before signal
+one, signal two, scoring, and logging.
 
 ---
 
