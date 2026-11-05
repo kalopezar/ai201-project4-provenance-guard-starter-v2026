@@ -337,13 +337,124 @@ the creator limit by changing or inventing IDs.
 <!-- Choose entries that show the interesting failures, not the ten easiest. -->
 
 ```json
-
+[
+  {
+    "timestamp": "2026-11-05T02:20:34+00:00",
+    "content_id": "c_9e51d6e50b14",
+    "creator_id": "attacker_EV01",
+    "guess": "human",
+    "model_score": 0.1635,
+    "style_score": 0.4767164790752975,
+    "combined_score": 0.2574649437225892,
+    "label": "This text looks more like it was written by a person. This is only an estimate, not proof of who wrote it.",
+    "status": "decided"
+  },
+  {
+    "timestamp": "2026-11-05T02:20:36+00:00",
+    "content_id": "c_5d5814e26d10",
+    "creator_id": "attacker_EV05",
+    "guess": "human",
+    "model_score": 0.3212,
+    "style_score": 0.3637435159697103,
+    "combined_score": 0.33396305479091304,
+    "label": "This text looks more like it was written by a person. This is only an estimate, not proof of who wrote it.",
+    "status": "decided"
+  },
+  {
+    "timestamp": "2026-11-05T02:20:38+00:00",
+    "content_id": "c_bdb4b105cdad",
+    "creator_id": "attacker_FP02",
+    "guess": "ai",
+    "model_score": 0.7387,
+    "style_score": 0.5447648984648049,
+    "combined_score": 0.6805194695394414,
+    "label": "This text looks more like it was written by AI. This is only an estimate, not proof of who wrote it. If you wrote it, you can appeal this result.",
+    "status": "decided"
+  },
+  {
+    "timestamp": "2026-11-05T02:20:38+00:00",
+    "content_id": "c_c9e6a87726eb",
+    "creator_id": "attacker_FP03",
+    "guess": "ai",
+    "model_score": 0.8051,
+    "style_score": 0.5419991111571644,
+    "combined_score": 0.7261697333471493,
+    "label": "This text looks more like it was written by AI. This is only an estimate, not proof of who wrote it. If you wrote it, you can appeal this result.",
+    "status": "decided"
+  },
+  {
+    "timestamp": "2026-11-05T02:20:38+00:00",
+    "content_id": "c_40798c0f9437",
+    "creator_id": "attacker_FP04",
+    "guess": "ai",
+    "model_score": 0.8329,
+    "style_score": 0.4301746766047538,
+    "combined_score": 0.7120824029814261,
+    "label": "This text looks more like it was written by AI. This is only an estimate, not proof of who wrote it. If you wrote it, you can appeal this result.",
+    "status": "decided"
+  },
+  {
+    "timestamp": "2026-11-05T02:20:38+00:00",
+    "content_id": "c_b549d6ab260d",
+    "creator_id": "attacker_FP05",
+    "guess": "ai",
+    "model_score": 0.8005,
+    "style_score": 0.5943847910599509,
+    "combined_score": 0.7386654373179852,
+    "label": "This text looks more like it was written by AI. This is only an estimate, not proof of who wrote it. If you wrote it, you can appeal this result.",
+    "status": "decided"
+  },
+  {
+    "timestamp": "2026-11-05T02:20:38+00:00",
+    "content_id": "c_c03a2c8cb775",
+    "creator_id": "attacker_FP06",
+    "guess": "ai",
+    "model_score": 0.8814,
+    "style_score": 0.4749744828163591,
+    "combined_score": 0.7594723448449077,
+    "label": "This text looks more like it was written by AI. This is only an estimate, not proof of who wrote it. If you wrote it, you can appeal this result.",
+    "status": "decided"
+  },
+  {
+    "timestamp": "2026-11-05T02:20:38+00:00",
+    "content_id": "c_3d00b8b0c5ab",
+    "creator_id": "attacker_FP07",
+    "guess": "ai",
+    "model_score": 0.8816,
+    "style_score": 0.5846670184525183,
+    "combined_score": 0.7925201055357555,
+    "label": "This text looks more like it was written by AI. This is only an estimate, not proof of who wrote it. If you wrote it, you can appeal this result.",
+    "status": "decided"
+  },
+  {
+    "timestamp": "2026-11-05T02:20:40+00:00",
+    "content_id": "c_9b22a02d16fe",
+    "creator_id": "attacker_MF03",
+    "guess": "human",
+    "model_score": 0.0,
+    "style_score": 0.16666666666666666,
+    "combined_score": 0.049999999999999996,
+    "label": "This text looks more like it was written by a person. This is only an estimate, not proof of who wrote it.",
+    "status": "decided"
+  },
+  {
+    "timestamp": "2026-11-05T02:20:45+00:00",
+    "creator_id": "attacker_flood",
+    "event": "rejected",
+    "status": "rejected",
+    "reason": "rate_limited",
+    "limit": "10 per 1 minute"
+  }
+]
 ```
 
 **The single worst outcome** — the one I'd least want to explain to a writer
 whose work got caught by it:
 
-
+FP07 (`c_3d00b8b0c5ab`): the system labeled deliberate phrase repetition in
+human writing as AI, with a combined score of 0.7925. It is the strongest
+false positive in this run and the reader-facing label presents an AI judgment
+to a human writer despite the detector being only a probabilistic estimate.
 
 ---
 
