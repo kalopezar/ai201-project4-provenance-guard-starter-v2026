@@ -474,6 +474,9 @@ plus three borderline passages. The same inputs were sent in all three trials.
 | 4. Appeal path | Exactly one decision and one appeal per content ID | 1 + 1 | 1 + 1 | 1 + 1 | MET |
 | 5. Bad input | Invalid text -> 400; >100,000 chars -> 413; no signal/log | 400x5, 200 | 400x5, 200 | 400x5, 200 | MISSED |
 
+Each verdict applies the original target to every run, not an average across
+runs. All three trials produced the same outcomes for the same inputs.
+
 Each trial ran through `python run_eval.py --label before`; the runner tests
 criterion 4 by submitting text, appealing the returned `content_id`, and
 checking the audit log. All three returned `under_review`, with one decision
@@ -600,9 +603,11 @@ three trials are in the linked run report.
 **Criterion 2 — score spread (missed):** Each run's mean combined score was
 0.5772 for the generated AI group and 0.4577 for the ten human-written samples,
 a gap of 0.1194 instead of the 0.20 target. Both signals separated the group
-means somewhat (model: 0.6343 vs. 0.5190; style: 0.4438 vs. 0.3148), but the
-weighted combination in `scoring.py::combine_signals` did not produce the
-required gap.
+means only modestly (model: 0.63434 vs. 0.51901, a 0.11533 gap; style: 0.44377
+vs. 0.31481, a 0.12896 gap). Their overlapping score distributions leave too
+little separation for the 70/30 weighted average in `scoring.py::combine_signals`
+to meet 0.20; the combined gap is the weighted combination of those small
+per-signal gaps.
 
 **Criterion 3 — label coverage (missed):** Each run returned 2 human, 21 unsure,
 and 0 AI labels. The highest combined score was 0.64949, just below the
@@ -615,6 +620,63 @@ character input returned 200, was scored and logged as a decision in all three
 runs, rather than returning 413 before either signal. The route has no
 maximum-length guard, so this failure is at input validation before signal
 one, signal two, scoring, and logging.
+
+**Broken attacks — stage and mechanism:** The 38 BROKE rows in the baseline
+attack report are accounted for below. IDs grouped in one row share the
+described failure mechanism; the IDs are listed explicitly so each result has
+a diagnosis.
+
+| Attack IDs | Stage | Mechanism |
+|---|---|---|
+| EV01 | Both signals, then combining rule | Typos make tokens less predictable to signal one (model score 0.1635) and raise measured vocabulary variety in signal two (style score 0.4767). The weighted score was 0.2575, so the AI text received a human label. |
+| EV02 | Signal two, combining rule, label mapping | Breaking up sentences changes sentence-length spread. The model score was 0.5943 and the style score 0.3060; the combined score (0.5078) landed in the unsure band, which avoided an AI label. |
+| EV03 | Signal two, combining rule, label mapping | A quotation changes the measured text shape without changing authorship. The style score was 0.3546; combined with model score 0.6662, the result was 0.5727 (unsure). |
+| EV04 | Signal one, combining rule, label mapping | Unusual word choices raise model perplexity, which lowers the model signal. Its 0.6114 model score and 0.4622 style score combined to 0.5666, below the AI-label boundary. |
+| EV05 | Both signals, combining rule, label mapping | Heavy editing shifted both outputs toward human-like values (model 0.3212, style 0.3637). Their 0.3340 weighted score crossed the human boundary. |
+| EV06 | Signal two, combining rule, label mapping | One long and one short sentence increase measured length variation. The resulting 0.4225 style score helped pull the combined score to 0.5276 (unsure). |
+| EV07 | Signal two, combining rule, label mapping | Punctuation padding affects punctuation density, a direct input to the style score. Style scored 0.2544; combined with model score 0.5862, it yielded 0.4867 (unsure). |
+| EV08 | Signal one, then label mapping | The short passage's perplexity mapped to a low 0.2452 model score; the combined score was 0.2829, producing a human label. The signal has no short-text calibration beyond rejecting texts too short to tokenize. |
+| EV09 | Both signals, combining rule, label mapping | The human opening paragraph changed the features of the full mixed text. Scores of 0.7042 (model) and 0.3703 (style) averaged to 0.6040, so the AI text received an unsure label. |
+| FP02–FP07 | Signal one, then combining rule and label mapping | These human samples scored 0.7387–0.8816 on model predictability. Formal, careful, rubric-shaped, technical, template-like, or deliberately repetitive prose can be predictable to GPT-2; the model signal treats predictability as AI-likeness. The combined scores (0.6805–0.7925) crossed the 0.65 AI threshold, including when style was less AI-like. |
+| PI01, PI02, PI03, PI06 | Route passes text to both signals; combining rule and label mapping | The route treats embedded instructions as ordinary text; it does not execute them or use a prompt-following model. The signals only measure perplexity and surface statistics. Those features happened to yield human/unsure scores (model 0.2044–0.5943), so the attempted text-based evasion avoided an AI label; this was a classification evasion, not instruction execution. |
+| MF02 | Route and signal one | The route checks only that text is a non-empty string. The one-character input reached `detector.perplexity`, which raises `ValueError` below three tokens; the route does not reject this length or convert the exception into a client error, so Flask returned 500. |
+| MF03–MF04 | Route validation, then both signals | Control-only and punctuation-only strings pass the route's non-empty-string check. Neither signal validates that input contains meaningful words; the scoring pipeline therefore made a decision and returned a human label for junk. |
+| MF05 | Route validation, then signal one and label mapping | A single extremely long word passes route validation. The tokenizer/model assigned it a 0.9976 AI-like score; style sees one token, has no sentence-length variation to measure, and returns 0.5. The combined score crosses the AI threshold despite there being no prose. |
+| MF06 | Route validation, then signal one and label mapping | Emoji-only input passes the same route check. The ASCII-word-based style signal recognizes no words and returns neutral 0.5; the model signal's 0.9969 drove an AI label for non-prose. |
+| MF07 | Route validation, then signal one and label mapping | Right-to-left text is not rejected or language-validated by the route. The style tokenizer recognizes no ASCII words and returns 0.5; the model signal scored 0.9064, leading to an AI label without evidence the text is AI-written. |
+| MF08 | Route validation and signal one | The route has no maximum-length guard, so 60,000 characters are accepted. Signal one truncates at its configured 400-token window while stylometry processes the submitted text; this mismatched scope still produced an AI decision and an audit record. |
+| RQ02 | Route validation | `creator_id` is not required: the route defaults a missing value to `"unknown"` and scores/logs the submission instead of rejecting an incomplete request. |
+| RQ06 | Route validation and audit metadata | `creator_id` is not type-checked. The object-valued ID is accepted and written as an object in the audit entry, rather than returning 400 or consistently identifying the caller. |
+| FL01_01–FL01_10 | Rate-limit gate at the route | Each of these ten same-creator requests arrived before the 10-per-minute cap was reached, so the limiter deliberately allowed it through for scoring. FL01_11 and FL01_12 then received 429 and were HELD. The mechanism is the selected burst allowance, not a bypass of the configured limiter. |
+
+**Patterns across the misses:** Criteria 2 and 3 are one calibration problem:
+the model and style score distributions overlap, so their 70/30 combination
+separates the groups by only 0.1194, and none of these test texts reaches the
+0.65 AI-label boundary. The label mapping has an AI range, but the tested
+inputs did not reach it. This same weak separation explains why nine of ten
+evasion attempts avoided an AI label; changes to word choice, sentence shape,
+quotations, punctuation, or a human-written opening paragraph move the two
+signals without changing authorship. Those are different attacks on the
+signals, not nine unrelated bugs.
+
+The six false positives (FP02–FP07) show the opposite side of the same
+predictability assumption: signal one gives formal, careful, templated, or
+repetitive human writing AI-like scores, and the combiner carries those scores
+above the AI threshold. In the malformed family, the route rejects basic
+missing/empty/wrong-type text, but does not enforce a minimum useful length,
+validate meaningful text or creator IDs, or cap input length. That shared
+route-validation gap accounts for the one-character 500, junk accepted as
+decisions, malformed creator IDs, and oversized text accepted and logged.
+Prompt-injection text was not executed as instructions; it was simply passed
+through the same non-semantic scoring pipeline, which cannot determine
+authorship from instruction intent.
+
+I am not revising any criterion: each target was measurable, and a miss is not
+a reason to lower it. I did not meet every target; the false-positive criterion
+and appeal-path criterion held, while score spread, label coverage, and the
+oversize-input requirement were missed. The three identical runs make these
+repeatable outcomes for these inputs, not evidence that the scores generalize
+to all writing.
 
 ---
 
