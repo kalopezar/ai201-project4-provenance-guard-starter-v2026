@@ -296,6 +296,23 @@ $ curl "http://127.0.0.1:5000/log?limit=2"
   the surprising calibration results and the false-positive risk, and made
   sure the appeal path was recorded rather than presenting a score as proof.
 
+**Moment 3**
+
+- *What I asked for:* Help me diagnose the staff attack set and my five
+  criteria, then identify one improvement I could measure without changing
+  other parts of the system.
+- *What came back:* The false-positive attacks shared a threshold problem:
+  FP02–FP07 were human writing scored above the original 0.65 AI boundary.
+  Raising the boundary would reduce those accusations but could also let more
+  AI text remain unsure.
+- *What I changed:* I raised `AI_THRESHOLD` once, from 0.65 to 0.80, and ran
+  the full attack set and all five criteria for three trials again. I kept the
+  original criteria unchanged and recorded both result sets side by side. The
+  change moved all six false-positive examples to unsure, but did not improve
+  evasion detection or the missed score-spread, label-coverage, and input-size
+  criteria; I documented that trade rather than calling it a general
+  detection improvement.
+
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 
 ---
@@ -910,29 +927,36 @@ These are unchanged targets and misses, not reasons to revise the criteria.
 <!-- For each attack still getting through and each criterion still missed:
      what you'd do, and why you stopped. -->
 
-The after run still has 32 BROKE attacks. EV01–EV09 avoid the AI label because
-the two surface signals respond to edits, unusual words, sentence shape, and
-punctuation. PI01–PI03 and PI06 also avoid that label; their embedded
-instructions are not executed, but this scoring pipeline cannot infer
-authorship from instruction intent. MF02 still causes a 500, and MF03–MF08,
-RQ02, and RQ06 still accept invalid or malformed content as decisions. The
-first ten same-creator flood requests remain within the configured allowance;
-the last two are rate-limited.
+The after run still has 32 BROKE attacks. These are grouped below by the
+shared failure mechanism; each row names every affected attack ID and the
+specific next change I would test. I stopped after the threshold change
+because this unit permits one improvement, and changing another stage now
+would make its effect impossible to separate from that threshold change.
 
-The original evaluation still missed criteria 2, 3, and 5. Criterion 2 needs
-better signal separation, not another threshold move; the before-run mean gap
-was 0.1194 against 0.20. Criterion 3 had no AI label even at the original 0.65
-cutoff, and raising the cutoff to 0.80 cannot help it. Criterion 5 still lacks
-the requested 413 response for oversized text. I stopped after the one
-threshold change so its effect is isolated; these are candidates for a later,
-separately measured improvement, not changes made alongside this one.
+| Still-broken attacks | What I would change next | Why I stopped here |
+|---|---|---|
+| EV01–EV09 | Rework and independently calibrate the signals against edited AI samples, especially typo/vocabulary variation, sentence splitting, punctuation, unusual words, and mixed human/AI passages. | The one threshold change did not affect these nine outcomes; the current surface features are easy to shift without changing authorship. Building and validating a better signal is a separate improvement, not another threshold tweak. |
+| PI01–PI03, PI06 | Keep embedded instructions as data and evaluate authorship with signals trained or calibrated for that task; do not treat instruction-following as a classification feature. | The route does not execute these instructions. They receive human/unsure labels because the existing signals measure predictability and style, not intent or authorship. The threshold change cannot fix that limitation. |
+| MF02 | Validate a minimum scorable token length before calling signal one and return a client error instead of allowing the detector's `ValueError` to become a 500. | This is a route-validation fix independent of the false-positive threshold improvement; I deferred it to keep the one-change comparison valid. |
+| MF03–MF08 | Validate usable text and a documented maximum length before scoring; reject control-only, punctuation-only, emoji-only, and unsupported-script input as appropriate, and return 413 for oversized text. | The route currently accepts these as decisions, while the signals can assign confident-looking scores to non-prose. Adding multiple input policies would be additional route changes outside this measured improvement. |
+| RQ02, RQ06 | Require `creator_id` to be a non-empty string and reject missing or object-valued IDs with 400 before scoring or logging a decision. | Creator-ID validation is a distinct route change; it was not needed to measure the threshold change and is deferred with the other validation work. |
+| FL01_01–FL01_10 | If the desired policy is to stop more of this burst, lower the per-minute allowance and rerun the flood test, while retaining a separately justified daily cap. | These first ten requests are within the configured 10-per-minute allowance; only FL01_11–FL01_12 exceed it and are held. Changing the rate limit would be a second improvement and would trade off legitimate revision bursts. |
+
+The original evaluation still missed criteria 2, 3, and 5:
+
+| Missed criterion | What I would change next | Why I stopped here |
+|---|---|---|
+| 2. AI/human score spread | Improve and calibrate the signals using a larger, representative labeled set, then measure whether the AI-human mean gap reaches 0.20. The observed gap stayed at 0.1194. | Moving the label threshold does not change combined scores or their mean gap. Signal work is a separate, larger improvement, so I did not combine it with the one threshold change. |
+| 3. Label coverage | After improving calibration, select test examples that genuinely span all three score regions and verify each label is reachable under the chosen thresholds. The after trials had 2 human, 21 unsure, and 0 AI. | Raising the AI boundary to 0.80 makes this miss harder to resolve; lowering it now could undo the measured reduction in false accusations. I stopped rather than make a second, unmeasured threshold change. |
+| 5. Bad input | Add route guards for detector-minimum text length and a 100,000-character maximum, returning 400 for invalid text and 413 for oversized text before either signal or decision logging. The 100,001-character case still returned 200. | This is a separate route-validation improvement, not part of the threshold change, so I deferred it rather than obscure the before/after comparison. |
 
 **The trade I'd make if this ran for real:**
 
-I would keep the wider unsure band because a false accusation can harm a real
-writer more directly than an uncertain label. The trade is that more AI
-writing will avoid a high-confidence AI label, so the site and readers who
-depend on that signal pay through weaker detection.
+If this ran for real, I would keep the wider unsure band because preventing
+false accusations against human writers matters more than labeling every
+suspicious submission as AI. The cost is that more AI-written text will pass
+without a high-confidence AI label, and the site and readers relying on that
+detection—not the falsely accused writer—would bear that cost.
 
 
 
