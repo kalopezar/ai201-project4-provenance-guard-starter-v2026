@@ -348,7 +348,71 @@ the creator limit by changing or inventing IDs.
 <!-- Every attack with its outcome and a held-or-broke mark.
      `run_attacks.py --label before` produces the table. -->
 
+**Baseline outcome:** 56 attacks; 18 HELD and 38 BROKE. The HELD/BROKE
+mark uses each attack's target: false-positive samples are HELD when they
+avoid an AI label; malformed requests are HELD when rejected with 400; and
+flood requests are HELD when rejected with 429. See the
+[complete baseline report](./results/attack_run_2026-11-04_2120.md) for
+full returned JSON for every attack.
 
+| ID | Family | Target | HTTP | Content ID | Guess | Verdict |
+|---|---|---|---:|---|---|---|
+| EV01 | evasion | Typos raise word variety | 200 | `c_9e51d6e50b14` | human | BROKE |
+| EV02 | evasion | Broken-up sentences raise length spread | 200 | `c_5afb998024e4` | unsure | BROKE |
+| EV03 | evasion | Pasted quotation changes text shape | 200 | `c_f04b033284cb` | unsure | BROKE |
+| EV04 | evasion | Unusual words raise perplexity | 200 | `c_cf786a6284cf` | unsure | BROKE |
+| EV05 | evasion | Heavy human editing changes both signals | 200 | `c_5d5814e26d10` | human | BROKE |
+| EV06 | evasion | Very long and very short sentences raise length spread | 200 | `c_1165a6c3c4a8` | unsure | BROKE |
+| EV07 | evasion | Punctuation padding changes style score | 200 | `c_f56a3719a9c1` | unsure | BROKE |
+| EV08 | evasion | Text below token window shifts model score | 200 | `c_ace6302dfa96` | human | BROKE |
+| EV09 | evasion | Human opening paragraph shifts mixed text scores | 200 | `c_324918de2b27` | unsure | BROKE |
+| EV10 | evasion | Repeated stanza structure | 200 | `c_3d14ceb3a128` | ai | HELD |
+| FP01 | false positive | Plain, clear human writing | 200 | `c_08e049fcf8e7` | unsure | HELD |
+| FP02 | false positive | Formal human writing | 200 | `c_bdb4b105cdad` | ai | BROKE |
+| FP03 | false positive | Careful writing by a non-native English speaker | 200 | `c_c9e6a87726eb` | ai | BROKE |
+| FP04 | false positive | Student essay written to a rubric | 200 | `c_40798c0f9437` | ai | BROKE |
+| FP05 | false positive | Human-written technical documentation | 200 | `c_b549d6ab260d` | ai | BROKE |
+| FP06 | false positive | Human writing imitating a formal template | 200 | `c_c03a2c8cb775` | ai | BROKE |
+| FP07 | false positive | Deliberate phrase repetition in human writing | 200 | `c_3d00b8b0c5ab` | ai | BROKE |
+| FP08 | false positive | Very short genuine human submission | 200 | `c_8e70d6e94554` | human | HELD |
+| PI01 | prompt injection | Instruction to ignore the check | 200 | `c_36bc178bce45` | unsure | BROKE |
+| PI02 | prompt injection | System-message-like instruction | 200 | `c_7ce0d6ef8b5e` | human | BROKE |
+| PI03 | prompt injection | Instruction in writer's voice | 200 | `c_3ff0b3fbb4bd` | unsure | BROKE |
+| PI04 | prompt injection | Attempt to make label text hostile | 200 | `c_e5282c053bc8` | unsure | HELD |
+| PI05 | prompt injection | Attempt to inject into audit log | 200 | `c_ebb1f4121853` | unsure | HELD |
+| PI06 | prompt injection | Instruction plus human text | 200 | `c_03a3ae3ef9b2` | unsure | BROKE |
+| MF01 | malformed | Whitespace-only text | 400 | — | — | HELD |
+| MF02 | malformed | Single-character text | 500 | — | — | BROKE |
+| MF03 | malformed | Control characters | 200 | `c_9b22a02d16fe` | human | BROKE |
+| MF04 | malformed | Punctuation-only text | 200 | `c_25865eb0d97f` | human | BROKE |
+| MF05 | malformed | Very long single word | 200 | `c_fd60515fe9fc` | ai | BROKE |
+| MF06 | malformed | Emoji-only text | 200 | `c_2f69e6cfc6d9` | ai | BROKE |
+| MF07 | malformed | Right-to-left script | 200 | `c_db38e819288a` | ai | BROKE |
+| MF08 | malformed | 60,000-character text | 200 | `c_2021950c6e2a` | ai | BROKE |
+| RQ01 | malformed | Missing text field | 400 | — | — | HELD |
+| RQ02 | malformed | Missing creator ID | 200 | `c_76f6b652ac39` | human | BROKE |
+| RQ03 | malformed | Numeric text | 400 | — | — | HELD |
+| RQ04 | malformed | List as text | 400 | — | — | HELD |
+| RQ05 | malformed | Null text | 400 | — | — | HELD |
+| RQ06 | malformed | Object-valued creator ID | 200 | `c_3c693f230ced` | human | BROKE |
+| RQ07 | malformed | JSON array body | 400 | — | — | HELD |
+| RQ08 | malformed | Unparseable JSON | 400 | — | — | HELD |
+| RQ09 | malformed | Empty body | 400 | — | — | HELD |
+| RQ10 | malformed | Form-encoded body | 400 | — | — | HELD |
+| RQ11 | malformed | JSON body claiming plain-text content type | 400 | — | — | HELD |
+| RQ12 | malformed | Deeply nested JSON | 400 | — | — | HELD |
+| FL01_01 | flood | Same-creator burst, request 1 | 200 | `c_4e249fe975ea` | human | BROKE |
+| FL01_02 | flood | Same-creator burst, request 2 | 200 | `c_854f64dc255b` | human | BROKE |
+| FL01_03 | flood | Same-creator burst, request 3 | 200 | `c_386b8cc50c14` | human | BROKE |
+| FL01_04 | flood | Same-creator burst, request 4 | 200 | `c_55dac6811a6a` | human | BROKE |
+| FL01_05 | flood | Same-creator burst, request 5 | 200 | `c_204817b827eb` | human | BROKE |
+| FL01_06 | flood | Same-creator burst, request 6 | 200 | `c_9e843f803912` | human | BROKE |
+| FL01_07 | flood | Same-creator burst, request 7 | 200 | `c_b793cf3322a6` | human | BROKE |
+| FL01_08 | flood | Same-creator burst, request 8 | 200 | `c_6a7f21d43ab7` | human | BROKE |
+| FL01_09 | flood | Same-creator burst, request 9 | 200 | `c_546526b5770c` | human | BROKE |
+| FL01_10 | flood | Same-creator burst, request 10 | 200 | `c_5fb661be1f1d` | human | BROKE |
+| FL01_11 | flood | Same-creator burst, request 11 | 429 | — | — | HELD |
+| FL01_12 | flood | Same-creator burst, request 12 | 429 | — | — | HELD |
 
 **Ten audit log entries from the run**
 
